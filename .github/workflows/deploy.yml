@@ -1,0 +1,39 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy n8n Workflow to VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            echo "🚀 Starting Deployment on VPS..."
+            
+            # Ensure repository directory exists
+            if [ ! -d "/home/moshimoshi/n8n-outreach" ]; then
+              echo "Cloning repository on VPS..."
+              git clone https://github.com/moshiurrahmandeap11/n8n-outreach.git /home/moshimoshi/n8n-outreach
+            fi
+
+            cd /home/moshimoshi/n8n-outreach
+            echo "Fetching latest changes..."
+            git fetch --all
+            git reset --hard origin/main
+            
+            echo "Updating n8n workflow..."
+            node scripts/deploy.js
+            
+            echo "✅ Deployment finished successfully!"

@@ -1,0 +1,865 @@
+{
+  "name": "B2B Lead Gen & Cold Outreach AI System",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "### 🚀 Agent 1: Lead Hunter & Researcher (Apollo.io + Gemini Key 1)\n1. Live search real registered companies via Apollo.io database\n2. Gemini analyzes their actual business & diagnoses real tech bottlenecks (Next.js, Stripe, n8n AI Automation)\n3. Appends 100% real leads into Google Sheets **'Leads'** tab with Status = 'New'",
+        "height": 380,
+        "width": 1540,
+        "color": 4
+      },
+      "id": "sticky-agent-1",
+      "name": "Sticky Note - Agent 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        200,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### ✍️ Agent 2: Cold Email Drafter (Gemini Key 2)\n1. Reads leads where Status = 'New'\n2. Writes personalized cold email + 4-day follow-up following company rules (Max 100 words, Next.js / Stripe / AI Automation value prop, Moshiur sign-off)\n3. Appends to **'Email Drafts'** tab with Approved? = 'No'\n4. Updates Lead status to 'Draft Created'",
+        "height": 380,
+        "width": 1540,
+        "color": 5
+      },
+      "id": "sticky-agent-2",
+      "name": "Sticky Note - Agent 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        200,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 🛡️ Human-in-the-Loop Email Dispatcher\n1. Reads **'Email Drafts'** where Approved? = 'Yes' and Sent Date is empty\n2. Sends email safely via Gmail / SMTP\n3. Stamps 'Sent Date' in Email Drafts\n4. Updates **'Leads'** tab Status = 'Email Sent', Last Contacted = Today, Next Action = 'Follow-up in 4 days'",
+        "height": 380,
+        "width": 1640,
+        "color": 6
+      },
+      "id": "sticky-agent-3",
+      "name": "Sticky Note - Safe Dispatcher",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        200,
+        1020
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "trigger-agent-1",
+      "name": "1. Trigger Lead Search",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "apolloKey",
+              "name": "apolloApiKey",
+              "value": "YOUR_APOLLO_API_KEY",
+              "type": "string"
+            },
+            {
+              "id": "niche",
+              "name": "targetNiche",
+              "value": "ecommerce, shopify, saas",
+              "type": "string"
+            },
+            {
+              "id": "country",
+              "name": "targetCountry",
+              "value": "United States",
+              "type": "string"
+            },
+            {
+              "id": "quantity",
+              "name": "leadQuantity",
+              "value": 3,
+              "type": "number"
+            },
+            {
+              id: "apiKey1",
+              name: "geminiApiKey1",
+              value: "YOUR_GEMINI_API_KEY_1",
+              type: "string"
+            }
+          ]
+        }
+      },
+      "id": "config-agent-1",
+      "name": "Config: Target Niche & Apollo Key",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apollo.io/v1/organizations/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-api-key",
+              "value": "={{ $json.apolloApiKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"q_organization_keyword_tags\": {{ JSON.stringify($json.targetNiche.split(',').map(s => s.trim())) }},\n  \"organization_num_employees_ranges\": [\"1,10\", \"11,20\", \"21,50\"],\n  \"organization_locations\": [{{ JSON.stringify($json.targetCountry) }}],\n  \"page\": 1,\n  \"per_page\": {{ $json.leadQuantity }}\n}"
+      },
+      "id": "apollo-search-orgs",
+      "name": "Apollo: Search Real Companies",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nconst orgs = res.organizations || [];\n\nif (orgs.length === 0) {\n  throw new Error(\"No organizations found in Apollo for these keywords.\");\n}\n\n// Extract real verified contact emails directly from each company's website\nconst enrichedOrgs = [];\n\nfor (const o of orgs) {\n  const domain = o.primary_domain;\n  let verifiedEmail = '';\n  \n  try {\n    const html = await this.helpers.httpRequest({\n      method: 'GET',\n      url: 'https://' + domain,\n      timeout: 6000,\n      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }\n    });\n    \n    if (typeof html === 'string') {\n      const matches = html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+.[a-zA-Z]{2,}/g) || [];\n      const clean = [...new Set(matches)].filter(e => {\n        const lower = e.toLowerCase();\n        return !lower.endsWith('.png') && !lower.endsWith('.jpg') && !lower.endsWith('.webp') &&\n               !lower.includes('sentry') && !lower.includes('wixpress') && !lower.includes('example.com') &&\n               !lower.includes('webpack') && !lower.includes('github') &&\n               (lower.includes(domain.toLowerCase()) || lower.startsWith('hello@') || lower.startsWith('contact@') || lower.startsWith('info@'));\n      });\n      if (clean.length > 0) {\n        verifiedEmail = clean[0];\n      }\n    }\n  } catch(e) {}\n\n  if (!verifiedEmail) {\n    verifiedEmail = 'hello@' + domain;\n  }\n\n  enrichedOrgs.push({\n    ...o,\n    verified_email: verifiedEmail\n  });\n}\n\nconst companiesText = enrichedOrgs.map((o, idx) => \n`Company ${idx + 1}:\n- Name: ${o.name}\n- Domain: ${o.primary_domain}\n- Website: ${o.website_url || ('https://' + o.primary_domain)}\n- Real Verified Contact Email: ${o.verified_email}\n- LinkedIn: ${o.linkedin_url || ''}\n- Industry: ${o.industry || 'E-commerce / Tech'}\n- Estimated Employees: ${o.estimated_num_employees || '1-50'}\n- Location: ${o.city || ''}, ${o.state || ''}`\n).join('\\n\\n');\n\nconst promptText = `You are the expert B2B lead intelligence researcher for Moshiur's Software Studio.\nOur Services: High-performance Web Apps (Next.js, React, Node.js, PostgreSQL), Stripe Payment Integrations, and custom AI Workflow Automations using n8n.\n\nHere is a list of REAL companies with their REAL VERIFIED website contact emails retrieved live:\n\n${companiesText}\n\nFor EACH real company above:\n1. Retain their exact real 'Company' name, 'Website', 'LinkedIn', and 'Industry'.\n2. You MUST use their exact 'Real Verified Contact Email' provided above for 'Email'. DO NOT invent or guess any other email address.\n3. Identify a realistic key decision-maker title or name (e.g. Founder, CEO, or Managing Director) for 'Contact Name'.\n4. Diagnose a specific, realistic pain point that Moshiur's Software Studio can solve based on their business model and employee size (e.g., if Shopify/e-commerce: slow checkout or mobile lag needing Next.js upgrade; if agency: manual intake bottleneck needing n8n workflow automation; if SaaS: custom Stripe subscription dashboard).\n5. Add actionable notes for outreach.\n\nReturn strictly a JSON array adhering to the schema.`;\n\nconst geminiPayload = {\n  contents: [\n    {\n      role: \"user\",\n      parts: [{ text: promptText }]\n    }\n  ],\n  generationConfig: {\n    temperature: 0.5,\n    responseMimeType: \"application/json\",\n    responseSchema: {\n      type: \"array\",\n      items: {\n        type: \"object\",\n        properties: {\n          Company: { type: \"string\" },\n          \"Contact Name\": { type: \"string\" },\n          Email: { type: \"string\" },\n          Website: { type: \"string\" },\n          LinkedIn: { type: \"string\" },\n          Industry: { type: \"string\" },\n          \"Pain Point\": { type: \"string\" },\n          Notes: { type: \"string\" }\n        },\n        required: [\"Company\", \"Contact Name\", \"Email\", \"Website\", \"Industry\", \"Pain Point\", \"Notes\"]\n      }\n    }\n  }\n};\n\nreturn [{\n  json: {\n    geminiPayload,\n    geminiApiKey1: $('Config: Target Niche & Apollo Key').first().json.geminiApiKey1\n  }\n}];"
+      },
+      "id": "prepare-real-companies",
+      "name": "Prepare Real Companies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={{ $json.geminiApiKey1 }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.geminiPayload }}"
+      },
+      "id": "gemini-agent-1",
+      "name": "Agent 1: Gemini Researcher",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and parse Gemini structured JSON output\nconst response = $input.first().json;\nlet leads = [];\n\ntry {\n  const parts = response.candidates[0].content.parts;\n  const textPart = parts.find(p => p.text && p.text.trim().length > 0) || parts[0];\n  let text = textPart.text.trim();\n  \n  if (text.startsWith(\"```json\")) {\n    text = text.replace(/^```json\\s*/, \"\").replace(/\\s*```$/, \"\");\n  } else if (text.startsWith(\"```\")) {\n    text = text.replace(/^```\\s*/, \"\").replace(/\\s*```$/, \"\");\n  }\n  \n  leads = JSON.parse(text.trim());\n} catch (e) {\n  throw new Error(\"Failed to parse Gemini response: \" + e.message);\n}\n\n// Return formatted items matching Google Sheet 'Leads' tab columns exactly\nreturn leads.map(lead => ({\n  json: {\n    \"Company\": lead[\"Company\"] || \"\",\n    \"Contact Name\": lead[\"Contact Name\"] || \"\",\n    \"Email\": lead[\"Email\"] || \"\",\n    \"Website\": lead[\"Website\"] || \"\",\n    \"LinkedIn\": lead[\"LinkedIn\"] || \"\",\n    \"Industry\": lead[\"Industry\"] || \"\",\n    \"Pain Point\": lead[\"Pain Point\"] || \"\",\n    \"Status\": \"New\",\n    \"Last Contacted\": \"\",\n    \"Next Action\": \"Draft cold email\",\n    \"Notes\": lead[\"Notes\"] || \"\"\n  }\n}));"
+      },
+      "id": "format-agent-1-leads",
+      "name": "Format Leads for Sheet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1Kg2OOXnm8oYZX9ecljtKd6IY5l3Iyw90gFxhY2OVVxY",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Leads",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "save-to-leads-sheet",
+      "name": "Save to Google Sheets (Leads)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1540,
+        220
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "yTPYeePVH5SmNCgj",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "trigger-agent-2",
+      "name": "2. Trigger Email Drafter",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "apiKey2",
+              "name": "geminiApiKey2",
+              "value": "YOUR_GEMINI_API_KEY_2",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "config-agent-2",
+      "name": "Config: Key 2",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        420,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "1Kg2OOXnm8oYZX9ecljtKd6IY5l3Iyw90gFxhY2OVVxY",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Leads",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Status",
+              "lookupValue": "New"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "read-new-leads",
+      "name": "Fetch 'New' Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        600,
+        680
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "yTPYeePVH5SmNCgj",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={{ $('Config: Key 2').first().json.geminiApiKey2 }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"role\": \"user\",\n      \"parts\": [\n        {\n          \"text\": \"You are the outreach assistant for Moshiur, who runs a professional software studio that builds web apps with Next.js, React, TypeScript, Node.js and PostgreSQL, including Stripe integrations and n8n AI workflow automations.\\n\\nTask: write a high-converting, professional cold outreach email and a follow-up email to the lead below.\\n\\nSTRICT EXECUTIVE STRUCTURE (MUST USE DOUBLE LINE BREAKS \\\\n\\\\n BETWEEN PARAGRAPHS):\\n1. Salutation: 'Hi [Contact Name],' followed by \\\\n\\\\n\\n2. Hook & Observation (1-2 sentences): A specific, authentic observation about their company, tech stack, or scaling challenges.\\n3. Blank line (\\\\n\\\\n)\\n4. Value Proposition (1-2 sentences): A concrete problem Moshiur's Software Studio can solve (e.g. Next.js storefront speed, Stripe subscription workflows, or custom n8n AI automations to eliminate agency manual bottlenecks). Write in proper English: 'I run a software studio...' (never 'I runs').\\n5. Blank line (\\\\n\\\\n)\\n6. Low-friction Call to Action (1 sentence): 'Open to a brief 15-minute chat this Thursday?' followed by \\\\n\\\\n\\n7. Professional Signature:\\nBest regards,\\nMoshiur Rahman\\nSoftware Engineer & Studio Lead\\nmoshiurbhau@gmail.com | https://labtoai.com\\n\\nSTRICT RULES:\\n- First Email: Max 90 words. Clean plain text with double line breaks between paragraphs.\\n- Never invent facts. Never mention pricing, delivery dates, or guarantees.\\n- Follow-up email: Max 50 words for 4 days later (short, polite check-in, signed off identically).\\n\\nLEAD INFO:\\nCompany: {{ $json['Company'] }}\\nContact: {{ $json['Contact Name'] }}\\nWebsite: {{ $json['Website'] }}\\nIndustry: {{ $json['Industry'] }}\\nPain Point / Notes: {{ $json['Pain Point'] }} | {{ $json['Notes'] }}\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"temperature\": 0.5,\n    \"responseMimeType\": \"application/json\",\n    \"responseSchema\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"firstSubject\": { \"type\": \"string\" },\n        \"firstBody\": { \"type\": \"string\" },\n        \"followUpSubject\": { \"type\": \"string\" },\n        \"followUpBody\": { \"type\": \"string\" }\n      },\n      \"required\": [\"firstSubject\", \"firstBody\", \"followUpSubject\", \"followUpBody\"]\n    }\n  }\n}"
+      },
+      "id": "gemini-agent-2",
+      "name": "Agent 2: Gemini Copywriter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        800,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine the generated email drafts into rows for 'Email Drafts' sheet\nconst items = $input.all();\nconst draftRows = [];\n\nfunction formatEmailBody(text) {\n  if (!text) return '';\n  let cleaned = text.trim();\n  \n  // Fix AI grammar slip\n  cleaned = cleaned.replace(/\\bI runs\\b/g, 'I run');\n  cleaned = cleaned.replace(/\\bWe runs\\b/g, 'We run');\n  \n  // Ensure greeting is followed by double newline\n  cleaned = cleaned.replace(/^(Hi [^,\\n]+,?)\\s*/i, '$1\\n\\n');\n  cleaned = cleaned.replace(/^(Hey [^,\\n]+,?)\\s*/i, '$1\\n\\n');\n  \n  // Ensure CTA is separated by double newline\n  cleaned = cleaned.replace(/\\s*(Open to [^?\\n]+\\?)/i, '\\n\\n$1\\n\\n');\n  cleaned = cleaned.replace(/\\s*(Would you be open [^?\\n]+\\?)/i, '\\n\\n$1\\n\\n');\n  \n  // Strip out old/messy signature if Gemini appended one\n  cleaned = cleaned.replace(/\\s*(Best regards|Best Regards|Best|Regards|Sincerely|Cheers),?\\s*Moshiur.*/is, '');\n  \n  // Normalize multiple newlines\n  cleaned = cleaned.replace(/\\n{3,}/g, '\\n\\n').trim();\n  \n  // Append clean, executive signature block\n  cleaned += '\\n\\nBest regards,\\nMoshiur Rahman\\nSoftware Engineer & Studio Lead\\nmoshiurbhau@gmail.com | https://labtoai.com';\n  \n  return cleaned;\n}\n\nfor (let i = 0; i < items.length; i++) {\n  const geminiRaw = items[i].json;\n  const lead = $('Fetch \\'New\\' Leads').all()[i].json;\n  \n  let copy;\n  try {\n    const parts = geminiRaw.candidates[0].content.parts;\n    const textPart = parts.find(p => p.text && p.text.trim().length > 0) || parts[0];\n    let text = textPart.text.trim();\n    if (text.startsWith(\"```json\")) {\n      text = text.replace(/^```json\\s*/, \"\").replace(/\\s*```$/, \"\");\n    } else if (text.startsWith(\"```\")) {\n      text = text.replace(/^```\\s*/, \"\").replace(/\\s*```$/, \"\");\n    }\n    copy = JSON.parse(text.trim());\n  } catch(e) {\n    continue;\n  }\n\n  // Row 1: First Cold Email\n  draftRows.push({\n    json: {\n      \"Lead Email\": lead[\"Email\"],\n      \"Subject\": copy.firstSubject,\n      \"Body\": formatEmailBody(copy.firstBody),\n      \"Type\": \"First\",\n      \"Approved?\": \"No\",\n      \"Sent Date\": \"\"\n    }\n  });\n\n  // Row 2: Follow-up Email (Ready for later)\n  draftRows.push({\n    json: {\n      \"Lead Email\": lead[\"Email\"],\n      \"Subject\": copy.followUpSubject || (\"Re: \" + copy.firstSubject),\n      \"Body\": formatEmailBody(copy.followUpBody),\n      \"Type\": \"Follow-up\",\n      \"Approved?\": \"No\",\n      \"Sent Date\": \"\"\n    }\n  });\n}\n\nreturn draftRows;"
+      },
+      "id": "prepare-draft-rows",
+      "name": "Prepare Draft Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1Kg2OOXnm8oYZX9ecljtKd6IY5l3Iyw90gFxhY2OVVxY",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Email Drafts",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "save-to-drafts-sheet",
+      "name": "Save to 'Email Drafts' Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1200,
+        680
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "yTPYeePVH5SmNCgj",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('Prepare Draft Rows').all();\nconst unique = {};\nfor (const item of items) {\n  const email = item.json['Lead Email'];\n  if (email && !unique[email]) {\n    unique[email] = {\n      json: {\n        \"Email\": email,\n        \"Status\": \"Draft Created\",\n        \"Next Action\": \"Review drafts in Email Drafts tab\"\n      }\n    };\n  }\n}\nreturn Object.values(unique);"
+      },
+      "id": "format-lead-draft-status",
+      "name": "Format Lead Draft Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1420,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1Kg2OOXnm8oYZX9ecljtKd6IY5l3Iyw90gFxhY2OVVxY",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Leads",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [
+            "Email"
+          ],
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "update-lead-status-drafted",
+      "name": "Update Lead: Draft Created",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1640,
+        680
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "yTPYeePVH5SmNCgj",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "trigger-safe-dispatcher",
+      "name": "3. Check Approved Drafts (15 min)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        1140
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "1Kg2OOXnm8oYZX9ecljtKd6IY5l3Iyw90gFxhY2OVVxY",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Email Drafts",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Approved?",
+              "lookupValue": "Yes"
+            },
+            {
+              "lookupColumn": "Type",
+              "lookupValue": "First"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "read-approved-drafts",
+      "name": "Fetch Approved First Drafts",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        440,
+        1140
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "yTPYeePVH5SmNCgj",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-not-sent",
+              "leftValue": "={{ $json['Sent Date'] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "filter-unsent",
+      "name": "Filter Only Unsent",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        1140
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json['Lead Email'] }}",
+        "subject": "={{ $json['Subject'] }}",
+        "emailType": "text",
+        "message": "={{ $json['Body'] }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "send-via-gmail",
+      "name": "Send via Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        880,
+        1120
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "uO5xmpEj3c2cXf52",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('Filter Only Unsent').all();\nconst today = new Date().toISOString().split('T')[0];\nreturn items.map(item => ({\n  json: {\n    \"Lead Email\": item.json['Lead Email'],\n    \"Subject\": item.json['Subject'],\n    \"Sent Date\": today\n  }\n}));"
+      },
+      "id": "format-stamp-sent-date",
+      "name": "Format Sent Date",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1Kg2OOXnm8oYZX9ecljtKd6IY5l3Iyw90gFxhY2OVVxY",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Email Drafts",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [
+            "Lead Email",
+            "Subject"
+          ],
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "update-draft-sent-date",
+      "name": "Stamp Sent Date in Drafts",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1300,
+        1120
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "yTPYeePVH5SmNCgj",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('Filter Only Unsent').all();\nconst today = new Date().toISOString().split('T')[0];\nreturn items.map(item => ({\n  json: {\n    \"Email\": item.json['Lead Email'],\n    \"Status\": \"Email Sent\",\n    \"Last Contacted\": today,\n    \"Next Action\": \"Send follow-up in 4 days\"\n  }\n}));"
+      },
+      "id": "format-lead-status-sent",
+      "name": "Format Lead Sent Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1Kg2OOXnm8oYZX9ecljtKd6IY5l3Iyw90gFxhY2OVVxY",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Leads",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [
+            "Email"
+          ],
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "update-leads-status-sent",
+      "name": "Update Leads: Email Sent",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1740,
+        1120
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "yTPYeePVH5SmNCgj",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "1. Trigger Lead Search": {
+      "main": [
+        [
+          {
+            "node": "Config: Target Niche & Apollo Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config: Target Niche & Apollo Key": {
+      "main": [
+        [
+          {
+            "node": "Apollo: Search Real Companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apollo: Search Real Companies": {
+      "main": [
+        [
+          {
+            "node": "Prepare Real Companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Real Companies": {
+      "main": [
+        [
+          {
+            "node": "Agent 1: Gemini Researcher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent 1: Gemini Researcher": {
+      "main": [
+        [
+          {
+            "node": "Format Leads for Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Leads for Sheet": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Sheets (Leads)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Trigger Email Drafter": {
+      "main": [
+        [
+          {
+            "node": "Config: Key 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config: Key 2": {
+      "main": [
+        [
+          {
+            "node": "Fetch 'New' Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch 'New' Leads": {
+      "main": [
+        [
+          {
+            "node": "Agent 2: Gemini Copywriter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent 2: Gemini Copywriter": {
+      "main": [
+        [
+          {
+            "node": "Prepare Draft Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Draft Rows": {
+      "main": [
+        [
+          {
+            "node": "Save to 'Email Drafts' Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to 'Email Drafts' Sheet": {
+      "main": [
+        [
+          {
+            "node": "Format Lead Draft Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Lead Draft Status": {
+      "main": [
+        [
+          {
+            "node": "Update Lead: Draft Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Check Approved Drafts (15 min)": {
+      "main": [
+        [
+          {
+            "node": "Fetch Approved First Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Approved First Drafts": {
+      "main": [
+        [
+          {
+            "node": "Filter Only Unsent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Only Unsent": {
+      "main": [
+        [
+          {
+            "node": "Send via Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Send via Gmail": {
+      "main": [
+        [
+          {
+            "node": "Format Sent Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Sent Date": {
+      "main": [
+        [
+          {
+            "node": "Stamp Sent Date in Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stamp Sent Date in Drafts": {
+      "main": [
+        [
+          {
+            "node": "Format Lead Sent Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Lead Sent Status": {
+      "main": [
+        [
+          {
+            "node": "Update Leads: Email Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

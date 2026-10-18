@@ -1,0 +1,17 @@
+{
+  "name": "n8n-outreach",
+  "version": "1.0.0",
+  "description": "Production B2B Lead Gen & Cold Outreach AI System in n8n",
+  "scripts": {
+    "deploy": "node scripts/deploy.js"
+  },
+  "keywords": [
+    "n8n",
+    "outreach",
+    "b2b",
+    "gemini-ai",
+    "apollo"
+  ],
+  "author": "Moshiur Rahman",
+  "license": "MIT"
+}
