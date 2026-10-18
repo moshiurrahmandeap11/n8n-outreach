@@ -74,4 +74,5 @@ The system consists of three interconnected branches:
 ## Author & Studio
 **Moshiur Rahman**  
 *Software Engineer & Studio Lead*  
-[Labto AI](https://labtoai.com)
+[Portfolio](https://moshiur.pro) | [Labto AI](https://labtoai.com)
+
