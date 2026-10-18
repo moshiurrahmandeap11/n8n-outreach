@@ -89,10 +89,10 @@
               "type": "number"
             },
             {
-              id: "apiKey1",
-              name: "geminiApiKey1",
-              value: "YOUR_GEMINI_API_KEY_1",
-              type: "string"
+              "id": "apiKey1",
+              "name": "geminiApiKey1",
+              "value": "YOUR_GEMINI_API_KEY_1",
+              "type": "string"
             }
           ]
         }
