@@ -94,19 +94,9 @@ To enable automatic deployment, go to your GitHub repository:
 
 ---
 
-## 💻 Manual Deployment / Testing on VPS
 
-If you ever want to run the deployment script directly on your VPS:
-
-```bash
-cd /home/moshimoshi/n8n-outreach
-git pull origin main
-node scripts/deploy.js
-```
-
----
 
 ## 👨‍💻 Author & Studio
 **Moshiur Rahman**  
 *Software Engineer & Studio Lead*  
-[Lab to AI](https://labtoai.com)
+[Labto AI](https://labtoai.com)
