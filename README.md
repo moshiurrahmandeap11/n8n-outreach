@@ -1,4 +1,4 @@
-# 🚀 B2B Lead Gen & Cold Outreach AI System (n8n + VPS CI/CD)
+# B2B Lead Gen & Cold Outreach AI System (n8n + VPS CI/CD)
 
 An automated, production-grade 2-agent B2B lead generation, research, copywriting, and cold email outreach engine built with **n8n**, **Apollo.io API**, **Google Gemini 2.5 Flash**, **Google Sheets CRM**, and **Gmail Dispatcher**, running live on Ubuntu VPS with automated GitHub Actions CI/CD.
 
@@ -44,31 +44,6 @@ The system consists of three interconnected branches:
 ├── package.json                # Project manifest
 └── README.md                   # Documentation
 ```
-
----
-
-## 🔄 Automated CI/CD Pipeline (GitHub Actions ➔ VPS)
-
-Every time you push changes to the `main` branch, GitHub Actions automatically deploys the updated workflow to your VPS:
-
-1. Connects to your Ubuntu VPS via SSH.
-2. Clones or fetches the latest commit in `/home/moshimoshi/n8n-outreach`.
-3. Runs `node scripts/deploy.js`:
-   - Connects to `/home/moshimoshi/.n8n/database.sqlite` via `node:sqlite`.
-   - Safely updates workflow ID `3c0ae0d8-d855-41c4-b476-bd91b5028e02` without breaking existing credentials or execution history.
-   - Gracefully reloads PM2 (`pm2 reload n8n`).
-
-### ⚙️ Required GitHub Actions Secrets
-
-To enable automatic deployment, go to your GitHub repository:
-**Settings ➔ Secrets and variables ➔ Actions ➔ New repository secret** and add:
-
-| Secret Name | Value | Description |
-|---|---|---|
-| `VPS_HOST` | `103.71.47.73` | VPS Public IP |
-| `VPS_USERNAME` | `moshimoshi` | VPS SSH User |
-| `VPS_PASSWORD` | `<your-vps-password>` | VPS SSH Password |
-| `VPS_PORT` | `22` | SSH Port (default: 22) |
 
 ---
 
